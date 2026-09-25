@@ -1,0 +1,244 @@
+suite: Test kubernetes backend secret store and role
+templates:
+  - templates/kubernetes/external-secrets-hub-role.yaml
+  - templates/kubernetes/external-secrets-hub-secretstore.yaml
+release:
+  name: release-test
+tests:
+  # Test Role generation
+  - it: should not create Role when backend is not kubernetes
+    set:
+      global:
+        secretStore:
+          backend: "vault"
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: should not create Role when not on hub cluster
+    templates:
+      - templates/kubernetes/external-secrets-hub-role.yaml
+    set:
+      global:
+        secretStore:
+          backend: "kubernetes"
+      clusterGroup:
+        isHubCluster: false
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: should create Role when backend is kubernetes and on hub cluster
+    templates:
+      - templates/kubernetes/external-secrets-hub-role.yaml
+    set:
+      global:
+        secretStore:
+          backend: "kubernetes"
+      clusterGroup:
+        isHubCluster: true
+    asserts:
+      - hasDocuments:
+          count: 1
+      - containsDocument:
+          kind: Role
+          apiVersion: rbac.authorization.k8s.io/v1
+          name: external-secrets
+
+  - it: should set correct namespace for Role
+    templates:
+      - templates/kubernetes/external-secrets-hub-role.yaml
+    set:
+      global:
+        secretStore:
+          backend: "kubernetes"
+      clusterGroup:
+        isHubCluster: true
+      ocpExternalSecrets:
+        kubernetes:
+          remoteNamespace: "custom-secrets-namespace"
+    asserts:
+      - equal:
+          path: metadata.namespace
+          value: "custom-secrets-namespace"
+
+  - it: should have correct permissions in Role
+    templates:
+      - templates/kubernetes/external-secrets-hub-role.yaml
+    set:
+      global:
+        secretStore:
+          backend: "kubernetes"
+      clusterGroup:
+        isHubCluster: true
+    asserts:
+      - contains:
+          path: rules
+          content:
+            apiGroups: [""]
+            resources: ["secrets"]
+            verbs: ["get", "list", "watch"]
+      - contains:
+          path: rules
+          content:
+            apiGroups: ["authorization.k8s.io"]
+            resources: ["selfsubjectrulesreviews"]
+            verbs: ["create"]
+
+  # Test ClusterSecretStore for kubernetes backend
+  - it: should create ClusterSecretStore when backend is kubernetes
+    templates:
+      - templates/kubernetes/external-secrets-hub-secretstore.yaml
+    set:
+      global:
+        secretStore:
+          backend: "kubernetes"
+    asserts:
+      - hasDocuments:
+          count: 1
+      - containsDocument:
+          kind: ClusterSecretStore
+          apiVersion: external-secrets.io/v1beta1
+          name: kubernetes-backend
+
+  - it: should set correct remote namespace in kubernetes ClusterSecretStore
+    templates:
+      - templates/kubernetes/external-secrets-hub-secretstore.yaml
+    set:
+      global:
+        secretStore:
+          backend: "kubernetes"
+      ocpExternalSecrets:
+        kubernetes:
+          remoteNamespace: "my-custom-namespace"
+    asserts:
+      - equal:
+          path: spec.provider.kubernetes.remoteNamespace
+          value: "my-custom-namespace"
+
+  - it: should set correct server URL in kubernetes ClusterSecretStore
+    templates:
+      - templates/kubernetes/external-secrets-hub-secretstore.yaml
+    set:
+      global:
+        secretStore:
+          backend: "kubernetes"
+      ocpExternalSecrets:
+        kubernetes:
+          server:
+            url: "https://my-api-server:6443"
+    asserts:
+      - equal:
+          path: spec.provider.kubernetes.server.url
+          value: "https://my-api-server:6443"
+
+  - it: should set service account auth in kubernetes ClusterSecretStore with default values
+    templates:
+      - templates/kubernetes/external-secrets-hub-secretstore.yaml
+    set:
+      global:
+        secretStore:
+          backend: "kubernetes"
+    asserts:
+      - equal:
+          path: spec.provider.kubernetes.auth.serviceAccount.name
+          value: ocp-external-secrets
+      - equal:
+          path: spec.provider.kubernetes.auth.serviceAccount.namespace
+          value: external-secrets
+
+  - it: should use configurable serviceAccount in kubernetes ClusterSecretStore
+    templates:
+      - templates/kubernetes/external-secrets-hub-secretstore.yaml
+    set:
+      global:
+        secretStore:
+          backend: "kubernetes"
+      ocpExternalSecrets:
+        rbac:
+          serviceAccount:
+            name: "custom-sa"
+            namespace: "custom-namespace"
+    asserts:
+      - equal:
+          path: spec.provider.kubernetes.auth.serviceAccount.name
+          value: custom-sa
+      - equal:
+          path: spec.provider.kubernetes.auth.serviceAccount.namespace
+          value: custom-namespace
+
+  - it: should not set caProvider when disabled in kubernetes backend
+    templates:
+      - templates/kubernetes/external-secrets-hub-secretstore.yaml
+    set:
+      global:
+        secretStore:
+          backend: "kubernetes"
+      ocpExternalSecrets:
+        caProvider:
+          enabled: false
+    asserts:
+      - notExists:
+          path: spec.provider.kubernetes.server.caProvider
+
+  - it: should set hostCluster caProvider when on hub cluster
+    templates:
+      - templates/kubernetes/external-secrets-hub-secretstore.yaml
+    set:
+      global:
+        secretStore:
+          backend: "kubernetes"
+      clusterGroup:
+        isHubCluster: true
+      ocpExternalSecrets:
+        caProvider:
+          enabled: true
+          hostCluster:
+            type: ConfigMap
+            name: my-ca-configmap
+            key: ca.pem
+            namespace: my-namespace
+    asserts:
+      - equal:
+          path: spec.provider.kubernetes.server.caProvider.type
+          value: ConfigMap
+      - equal:
+          path: spec.provider.kubernetes.server.caProvider.name
+          value: my-ca-configmap
+      - equal:
+          path: spec.provider.kubernetes.server.caProvider.key
+          value: ca.pem
+      - equal:
+          path: spec.provider.kubernetes.server.caProvider.namespace
+          value: my-namespace
+
+  - it: should set clientCluster caProvider when not on hub cluster
+    templates:
+      - templates/kubernetes/external-secrets-hub-secretstore.yaml
+    set:
+      global:
+        secretStore:
+          backend: "kubernetes"
+      clusterGroup:
+        isHubCluster: false
+      ocpExternalSecrets:
+        caProvider:
+          enabled: true
+          clientCluster:
+            type: Secret
+            name: my-ca-secret
+            key: tls.crt
+            namespace: client-namespace
+    asserts:
+      - equal:
+          path: spec.provider.kubernetes.server.caProvider.type
+          value: Secret
+      - equal:
+          path: spec.provider.kubernetes.server.caProvider.name
+          value: my-ca-secret
+      - equal:
+          path: spec.provider.kubernetes.server.caProvider.key
+          value: tls.crt
+      - equal:
+          path: spec.provider.kubernetes.server.caProvider.namespace
+          value: client-namespace

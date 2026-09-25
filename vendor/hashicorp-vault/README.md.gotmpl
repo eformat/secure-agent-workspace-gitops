@@ -1,0 +1,60 @@
+{{ template "chart.header" . }}
+{{ template "chart.deprecationWarning" . }}
+
+{{ template "chart.badgesSection" . }}
+
+{{ template "chart.description" . }}
+
+This chart is used by the Validated Patterns installation script that can be found [here](https://github.com/validatedpatterns/common/blob/main/scripts/pattern-util.sh)
+
+{{ template "chart.homepageLine" . }}
+
+{{ template "chart.maintainersSection" . }}
+
+{{ template "chart.sourcesSection" . }}
+
+{{ template "chart.requirementsSection" . }}
+
+{{ template "chart.valuesSection" . }}
+
+{{ template "helm-docs.versionFooter" . }}
+
+## Updating the chart
+
+1. Edit Chart.yaml with the new version
+2. In the hashicorp-vault folder, run: `helm dependency update .`
+3. Run `./update-helm-dependency.sh`
+4. Check that the images in ./values.yaml are the same version as [upstream](https://github.com/hashicorp/vault-helm/blob/main/values.openshift.yaml)
+5. Git add the new chart in `./charts/vault-<version>.tgz`
+
+## Patches
+
+### Issue 674
+
+In order to be able to use vault ssl we need to patch the helm chart to fix
+upstream issue 674. Basically a single annotation for both internal service and
+non-internal service is a problem because the annotations in the service
+section are applied to both the vault and the vault-internal services and there
+is not way to distinguish between the two. When deploying to OpenShift and the
+annotation is used to request a certificate, this causes a race condition
+because two services are trying to modify the same secret (containing the
+certificate)
+
+This is why we set the following in the values files:
+
+```
+  nonha:
+    # -- Annotation to inject a secret called `vault-secret` to the nonha service
+    annotations:
+      service.beta.openshift.io/serving-cert-secret-name: vault-secret
+  internal:
+    # -- Annotation to inject a secret called `vault-secret` to the internal service
+    annotations:
+      service.beta.openshift.io/serving-cert-secret-name: vault-secret-internal
+```
+
+Make sure to run "./update-helm-dependency.sh" after you updated the subchart
+(by calling helm dependency update .)
+
+We can drop this local patch once upstream fixes the bug (which would need reopining, discuss
+and fixing)

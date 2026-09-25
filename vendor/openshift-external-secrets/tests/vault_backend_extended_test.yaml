@@ -1,0 +1,186 @@
+suite: Test vault backend extended scenarios
+templates:
+  - templates/vault/external-secrets-hub-secretstore.yaml
+release:
+  name: release-test
+tests:
+  - it: should use default vault configuration
+    asserts:
+      - equal:
+          path: spec.provider.vault.path
+          value: secret
+      - equal:
+          path: spec.provider.vault.version
+          value: v2
+
+  - it: should construct correct vault server URL with custom hubClusterDomain
+    set:
+      global:
+        hubClusterDomain: "my-custom.domain.com"
+        secretStore:
+          backend: "vault"
+    asserts:
+      - equal:
+          path: spec.provider.vault.server
+          value: "https://vault-vault.my-custom.domain.com"
+
+  - it: should set correct kubernetes auth for hub cluster with custom values
+    set:
+      clusterGroup:
+        isHubCluster: true
+      ocpExternalSecrets:
+        rbac:
+          rolename: "custom-hub-role"
+        vault:
+          mountPath: "custom-hub-mount"
+      global:
+        secretStore:
+          backend: "vault"
+    asserts:
+      - equal:
+          path: spec.provider.vault.auth.kubernetes.mountPath
+          value: "custom-hub-mount"
+      - equal:
+          path: spec.provider.vault.auth.kubernetes.role
+          value: "custom-hub-role"
+
+  - it: should set correct kubernetes auth for spoke cluster with custom domain
+    set:
+      global:
+        clusterDomain: "spoke.custom.domain"
+        secretStore:
+          backend: "vault"
+      clusterGroup:
+        isHubCluster: false
+    asserts:
+      - equal:
+          path: spec.provider.vault.auth.kubernetes.mountPath
+          value: "spoke.custom.domain"
+      - equal:
+          path: spec.provider.vault.auth.kubernetes.role
+          value: "spoke.custom.domain-role"
+
+  - it: should handle hashicorp-vault application detection
+    set:
+      clusterGroup:
+        isHubCluster: false
+        applications:
+          vault:
+            name: vault
+            namespace: vault
+            project: hub
+            chart: hashicorp-vault
+            chartVersion: 0.1.*
+      global:
+        secretStore:
+          backend: "vault"
+    asserts:
+      - equal:
+          path: spec.provider.vault.auth.kubernetes.mountPath
+          value: hub
+      - equal:
+          path: spec.provider.vault.auth.kubernetes.role
+          value: hub-role
+
+  - it: should handle complex applications structure with hashicorp-vault
+    set:
+      clusterGroup:
+        isHubCluster: false
+        applications:
+          acm:
+            name: acm
+            namespace: open-cluster-management
+            project: hub
+            chart: acm
+          vault:
+            name: vault
+            namespace: vault
+            project: hub
+            chart: hashicorp-vault
+          other:
+            name: other
+            chart: some-other-chart
+      global:
+        secretStore:
+          backend: "vault"
+    asserts:
+      - equal:
+          path: spec.provider.vault.caProvider.type
+          value: ConfigMap
+
+  - it: should use hostCluster caProvider for hashicorp-vault even when not hub
+    set:
+      clusterGroup:
+        isHubCluster: false
+        applications:
+          vault:
+            chart: hashicorp-vault
+      ocpExternalSecrets:
+        caProvider:
+          enabled: true
+          hostCluster:
+            type: ConfigMap
+            name: vault-ca
+            key: ca.crt
+            namespace: vault
+      global:
+        secretStore:
+          backend: "vault"
+    asserts:
+      - equal:
+          path: spec.provider.vault.caProvider.type
+          value: ConfigMap
+      - equal:
+          path: spec.provider.vault.caProvider.name
+          value: vault-ca
+      - equal:
+          path: spec.provider.vault.caProvider.key
+          value: ca.crt
+      - equal:
+          path: spec.provider.vault.caProvider.namespace
+          value: vault
+
+  - it: should handle null backend value (defaults to vault)
+    set:
+      global:
+        secretStore:
+          backend: null
+    asserts:
+      - hasDocuments:
+          count: 1
+      - equal:
+          path: spec.provider.vault.server
+          value: "https://vault-vault.hub.example.com"
+
+  - it: should handle missing backend key (defaults to vault)
+    set:
+      global:
+        secretStore: {}
+    asserts:
+      - hasDocuments:
+          count: 1
+
+  - it: should not render when backend is explicitly set to non-vault value
+    set:
+      global:
+        secretStore:
+          backend: "aws"
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: should correctly set secret reference for authentication
+    set:
+      global:
+        secretStore:
+          backend: "vault"
+    asserts:
+      - equal:
+          path: spec.provider.vault.auth.kubernetes.secretRef.name
+          value: ocp-external-secrets
+      - equal:
+          path: spec.provider.vault.auth.kubernetes.secretRef.namespace
+          value: external-secrets
+      - equal:
+          path: spec.provider.vault.auth.kubernetes.secretRef.key
+          value: token

@@ -1,0 +1,74 @@
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: external-secrets
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: external-secrets-operator
+---
+# global (all-namespaces) OperatorGroup - no spec, parity with clustergroup chart
+apiVersion: operators.coreos.com/v1
+kind: OperatorGroup
+metadata:
+  name: external-secrets-operator-operator-group
+  namespace: external-secrets-operator
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: openshift-cnv
+---
+apiVersion: operators.coreos.com/v1
+kind: OperatorGroup
+metadata:
+  name: openshift-cnv-operator-group
+  namespace: openshift-cnv
+spec:
+  targetNamespaces:
+  - openshift-cnv
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: openshell-agents
+---
+apiVersion: operators.coreos.com/v1
+kind: OperatorGroup
+metadata:
+  name: openshell-agents-operator-group
+  namespace: openshell-agents
+spec:
+  targetNamespaces:
+  - openshell-agents
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: rhdh-operator
+---
+# global (all-namespaces) OperatorGroup - no spec, parity with clustergroup chart
+apiVersion: operators.coreos.com/v1
+kind: OperatorGroup
+metadata:
+  name: rhdh-operator-operator-group
+  namespace: rhdh-operator
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: redhat-ods-operator
+---
+# global (all-namespaces) OperatorGroup - no spec, parity with clustergroup chart
+apiVersion: operators.coreos.com/v1
+kind: OperatorGroup
+metadata:
+  name: redhat-ods-operator-operator-group
+  namespace: redhat-ods-operator
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: vault

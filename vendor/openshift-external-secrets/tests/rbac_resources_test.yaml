@@ -1,0 +1,139 @@
+suite: Test RBAC resources - ServiceAccount, Secret, and ClusterRoleBinding
+templates:
+  - templates/external-secrets-hub-clusterrolebinding.yaml
+release:
+  name: release-test
+tests:
+  - it: should create ServiceAccount with correct metadata
+    asserts:
+      - containsDocument:
+          kind: ServiceAccount
+          apiVersion: v1
+          name: ocp-external-secrets
+        documentSelector:
+          path: kind
+          value: ServiceAccount
+      - equal:
+          path: metadata.namespace
+          value: external-secrets
+        documentSelector:
+          path: kind
+          value: ServiceAccount
+
+  - it: should create Secret with correct metadata and annotations
+    asserts:
+      - containsDocument:
+          kind: Secret
+          apiVersion: v1
+          name: ocp-external-secrets
+        documentSelector:
+          path: kind
+          value: Secret
+      - equal:
+          path: metadata.namespace
+          value: external-secrets
+        documentSelector:
+          path: kind
+          value: Secret
+      - equal:
+          path: metadata.annotations["kubernetes.io/service-account.name"]
+          value: ocp-external-secrets
+        documentSelector:
+          path: kind
+          value: Secret
+      - equal:
+          path: type
+          value: kubernetes.io/service-account-token
+        documentSelector:
+          path: kind
+          value: Secret
+
+  - it: should create ClusterRoleBinding with correct configuration
+    asserts:
+      - containsDocument:
+          kind: ClusterRoleBinding
+          apiVersion: rbac.authorization.k8s.io/v1
+          name: role-tokenreview-binding
+        documentSelector:
+          path: kind
+          value: ClusterRoleBinding
+      - equal:
+          path: roleRef.apiGroup
+          value: rbac.authorization.k8s.io
+        documentSelector:
+          path: kind
+          value: ClusterRoleBinding
+      - equal:
+          path: roleRef.kind
+          value: ClusterRole
+        documentSelector:
+          path: kind
+          value: ClusterRoleBinding
+      - equal:
+          path: roleRef.name
+          value: system:auth-delegator
+        documentSelector:
+          path: kind
+          value: ClusterRoleBinding
+
+  - it: should have correct subject in ClusterRoleBinding
+    asserts:
+      - contains:
+          path: subjects
+          content:
+            kind: ServiceAccount
+            name: ocp-external-secrets
+            namespace: external-secrets
+        documentSelector:
+          path: kind
+          value: ClusterRoleBinding
+
+  - it: should create all three resources
+    asserts:
+      - hasDocuments:
+          count: 3
+
+  - it: should use configurable serviceAccount name and namespace
+    set:
+      ocpExternalSecrets.rbac.serviceAccount.name: "custom-sa"
+      ocpExternalSecrets.rbac.serviceAccount.namespace: "custom-namespace"
+    asserts:
+      - equal:
+          path: metadata.name
+          value: custom-sa
+        documentSelector:
+          path: kind
+          value: ServiceAccount
+      - equal:
+          path: metadata.namespace
+          value: custom-namespace
+        documentSelector:
+          path: kind
+          value: ServiceAccount
+      - equal:
+          path: metadata.name
+          value: custom-sa
+        documentSelector:
+          path: kind
+          value: Secret
+      - equal:
+          path: metadata.namespace
+          value: custom-namespace
+        documentSelector:
+          path: kind
+          value: Secret
+      - equal:
+          path: metadata.annotations["kubernetes.io/service-account.name"]
+          value: custom-sa
+        documentSelector:
+          path: kind
+          value: Secret
+      - contains:
+          path: subjects
+          content:
+            kind: ServiceAccount
+            name: custom-sa
+            namespace: custom-namespace
+        documentSelector:
+          path: kind
+          value: ClusterRoleBinding

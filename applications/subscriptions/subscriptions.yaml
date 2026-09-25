@@ -1,0 +1,60 @@
+---
+apiVersion: operators.coreos.com/v1alpha1
+kind: Subscription
+metadata:
+  name: eso
+  namespace: external-secrets-operator
+spec:
+  channel: stable-v1
+  installPlanApproval: Automatic
+  name: openshift-external-secrets-operator
+  source: redhat-operators
+  sourceNamespace: openshift-marketplace
+---
+apiVersion: operators.coreos.com/v1alpha1
+kind: Subscription
+metadata:
+  name: openshift-virtualization
+  namespace: openshift-cnv
+spec:
+  channel: stable
+  installPlanApproval: Automatic
+  name: kubevirt-hyperconverged
+  source: redhat-operators
+  sourceNamespace: openshift-marketplace
+---
+apiVersion: operators.coreos.com/v1alpha1
+kind: Subscription
+metadata:
+  name: rhbk
+  namespace: openshell-agents
+spec:
+  channel: stable-v26
+  installPlanApproval: Automatic
+  name: rhbk-operator
+  source: redhat-operators
+  sourceNamespace: openshift-marketplace
+---
+apiVersion: operators.coreos.com/v1alpha1
+kind: Subscription
+metadata:
+  name: rhdh
+  namespace: rhdh-operator
+spec:
+  channel: fast
+  installPlanApproval: Automatic
+  name: rhdh
+  source: redhat-operators
+  sourceNamespace: openshift-marketplace
+---
+apiVersion: operators.coreos.com/v1alpha1
+kind: Subscription
+metadata:
+  name: openshift-ai
+  namespace: redhat-ods-operator
+spec:
+  channel: fast
+  installPlanApproval: Automatic
+  name: rhods-operator
+  source: redhat-operators
+  sourceNamespace: openshift-marketplace

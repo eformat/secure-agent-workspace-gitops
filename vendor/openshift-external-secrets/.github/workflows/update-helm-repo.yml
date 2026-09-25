@@ -1,0 +1,36 @@
+# This invokes the workflow named 'publish-charts' in the umbrella repo
+# It expects to have a secret called CHARTS_REPOS_TOKEN which contains
+# the GitHub token that has permissions to invoke workflows and commit code
+# inside the umbrella-repo.
+# The following fine-grained permissions were used in testing and were limited
+# to the umbrella repo only:
+# - Actions: r/w
+# - Commit statuses: r/w
+# - Contents: r/w
+# - Deployments: r/w
+# - Pages: r/w
+#
+
+name: vp-patterns/update-helm-repo
+
+on:
+  push:
+    tags:
+      - "v[0-9]+.[0-9]+.[0-9]+"
+
+permissions:
+  contents: read
+
+jobs:
+  helmlint:
+    uses: validatedpatterns/helm-charts/.github/workflows/helmlint.yml@69fd10ef9199eecd093fca715ae9765c78750efc # October 6, 2025
+    permissions:
+      contents: read
+
+  update-helm-repo:
+    needs: [helmlint]
+    uses: validatedpatterns/helm-charts/.github/workflows/update-helm-repo.yml@69fd10ef9199eecd093fca715ae9765c78750efc # October 6, 2025
+    permissions:
+      contents: read
+    secrets:
+      CHARTS_REPOS_TOKEN: ${{ secrets.CHARTS_REPOS_TOKEN }}

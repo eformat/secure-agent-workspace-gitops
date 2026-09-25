@@ -1,0 +1,11 @@
+---
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: openshell-agents
+helmGlobals:
+  chartHome: ../../../charts
+helmCharts:
+  - name: openshell-saw
+    includeCRDs: true
+    releaseName: openshell-saw
+    valuesFile: values-site.yaml

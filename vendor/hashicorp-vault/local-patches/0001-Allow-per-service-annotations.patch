@@ -1,0 +1,121 @@
+diff --git a/templates/_helpers.tpl b/templates/_helpers.tpl
+index ab32311..392af0b 100644
+--- a/templates/_helpers.tpl
++++ b/templates/_helpers.tpl
+@@ -746,6 +746,35 @@ Sets extra vault server Service annotations
+   {{- end }}
+ {{- end -}}
+ 
++{{/*
++Sets extra vault server Service internal annotations
++*/}}
++{{- define "vault.service.internal.annotations" -}}
++  {{- if .Values.server.service.internal.annotations }}
++    {{- $tp := typeOf .Values.server.service.internal.annotations }}
++    {{- if eq $tp "string" }}
++      {{- tpl .Values.server.service.internal.annotations . | nindent 4 }}
++    {{- else }}
++      {{- toYaml .Values.server.service.internal.annotations | nindent 4 }}
++    {{- end }}
++  {{- end }}
++{{- end -}}
++{{/*
++Sets extra vault server Service nonha annotations
++Note: We call it 'nonha' as we need to differentiate the "vault.service.annotations" which are
++      applied to all services
++*/}}
++{{- define "vault.service.nonha.annotations" -}}
++  {{- if .Values.server.service.nonha.annotations }}
++    {{- $tp := typeOf .Values.server.service.nonha.annotations }}
++    {{- if eq $tp "string" }}
++      {{- tpl .Values.server.service.nonha.annotations . | nindent 4 }}
++    {{- else }}
++      {{- toYaml .Values.server.service.nonha.annotations | nindent 4 }}
++    {{- end }}
++  {{- end }}
++{{- end -}}
++
+ {{/*
+ Sets PodSecurityPolicy annotations
+ */}}
+diff --git a/templates/server-headless-service.yaml b/templates/server-headless-service.yaml
+index 8db49d1..2fde1ac 100644
+--- a/templates/server-headless-service.yaml
++++ b/templates/server-headless-service.yaml
+@@ -21,6 +21,7 @@ metadata:
+     vault-internal: "true"
+   annotations:
+ {{ template "vault.service.annotations" .}}
++{{ template "vault.service.internal.annotations" .}}
+ spec:
+   {{- if (semverCompare ">= 1.23-0" .Capabilities.KubeVersion.Version) }}
+   {{- if .Values.server.service.ipFamilyPolicy }}
+diff --git a/templates/server-service.yaml b/templates/server-service.yaml
+index 7dac6da..89a2405 100644
+--- a/templates/server-service.yaml
++++ b/templates/server-service.yaml
+@@ -20,6 +20,7 @@ metadata:
+     app.kubernetes.io/managed-by: {{ .Release.Service }}
+   annotations:
+ {{ template "vault.service.annotations" .}}
++{{ template "vault.service.nonha.annotations" .}}
+ {{- if and .Values.global.openshift .Values.server.serviceCA.enabled }}
+     service.beta.openshift.io/serving-cert-secret-name: {{ .Values.server.serviceCA.secretName | quote }}
+ {{- end }}
+diff --git a/values.schema.json b/values.schema.json
+index dfb4346..bae355e 100644
+--- a/values.schema.json
++++ b/values.schema.json
+@@ -1083,6 +1083,28 @@
+                                 "string"
+                             ]
+                         },
++                        "internal": {
++                            "type": "object",
++                            "properties": {
++                                "annotations": {
++                                    "type": [
++                                        "object",
++                                        "string"
++                                    ]
++                                }
++                            }
++                        },
++                        "nonha": {
++                            "type": "object",
++                            "properties": {
++                                "annotations": {
++                                    "type": [
++                                        "object",
++                                        "string"
++                                    ]
++                                }
++                            }
++                        },
+                         "enabled": {
+                             "type": "boolean"
+                         },
+diff --git a/values.yaml b/values.yaml
+index 287ef8b..9ef6448 100644
+--- a/values.yaml
++++ b/values.yaml
+@@ -746,6 +746,19 @@ server:
+       # YAML-formatted multi-line templated string map of the annotations to apply
+       # to the standby service.
+       annotations: {}
++
++    nonha:
++      # Extra annotations for the service definition. This can either be YAML or a
++      # YAML-formatted multi-line templated string map of the annotations to apply
++      # to the service.
++      annotations: {}
++
++    internal:
++      # Extra annotations for the service definition. This can either be YAML or a
++      # YAML-formatted multi-line templated string map of the annotations to apply
++      # to the service.
++      annotations: {}
++
+     # If enabled, the service selectors will include `app.kubernetes.io/instance: {{ .Release.Name }}`
+     # When disabled, services may select Vault pods not deployed from the chart.
+     # Does not affect the headless vault-internal service with `ClusterIP: None`

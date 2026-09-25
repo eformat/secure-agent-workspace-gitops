@@ -1,0 +1,28 @@
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: secure-agent-workspace
+  namespace: openshift-gitops
+spec:
+  project: default
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: openshift-gitops
+  source:
+    repoURL: REPO_URL_PLACEHOLDER
+    targetRevision: main
+    path: app-of-apps/hub
+    directory:
+      include: "*.yaml"
+  syncPolicy:
+    automated:
+      selfHeal: true
+    retry:
+      limit: 10
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m
+    syncOptions:
+      - Validate=true

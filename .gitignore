@@ -1,0 +1,5 @@
+---
+# real secret material - never commit
+secrets/seed-vault.yaml
+secrets/*.token
+*.generated-ssh-keys/

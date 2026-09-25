@@ -1,0 +1,98 @@
+#!/bin/bash
+# One-stop bootstrap for ALL non-optional values:
+#   1. derives the cluster domain from the connected cluster (oc)
+#   2. fetches the vault root token from the vault-init secret
+#   3. port-forwards the vault service (no route/DNS needed)
+#   4. generates the sandbox ssh keypair if missing
+#   5. seeds vault (KV v2) with ssh + inference + web-search
+#   6. writes the derived cluster domain into the site values file
+#
+# Keys match the ExternalSecret remoteRefs in charts/pattern-secrets
+# (vaultPrefix: secret/data/hub).
+#
+# Env overrides (all optional):
+#   VAULT_TOKEN          root token (auto-fetched from vault-init secret)
+#   VAULT_ADDR           vault API url (auto port-forward to svc/vault)
+#   CLUSTER_DOMAIN       apps domain (auto-derived from oc)
+#   SSH_KEY_PATH         (default ~/.generated-ssh-keys/sandbox-ssh)
+#   GEMINI_API_KEY_PATH  (default ~/.gemini-api-key)
+#   INFERENCE_PROVIDER   (default gemini)
+#   INFERENCE_MODEL      (default gemini-2.5-flash)
+set -euo pipefail
+
+command -v vault >/dev/null 2>&1 || { echo "vault CLI required but not installed. Aborting." >&2; exit 1; }
+command -v oc >/dev/null 2>&1 || { echo "oc CLI required but not installed. Aborting." >&2; exit 1; }
+
+REPO_DIR="$(cd "$(dirname "$0")/.." && pwd)"
+SITE_VALUES="${REPO_DIR}/applications/openshell-saw/overlay/values-site.yaml"
+SSH_KEY_PATH="${SSH_KEY_PATH:-$HOME/.generated-ssh-keys/sandbox-ssh}"
+GEMINI_API_KEY_PATH="${GEMINI_API_KEY_PATH:-$HOME/.gemini-api-key}"
+INFERENCE_PROVIDER="${INFERENCE_PROVIDER:-gemini}"
+INFERENCE_MODEL="${INFERENCE_MODEL:-gemini-2.5-flash}"
+
+# --- 1. derive cluster domain ---
+if [ -z "${CLUSTER_DOMAIN:-}" ]; then
+  CLUSTER_DOMAIN="$(oc get ingress.config.openshift.io cluster -o jsonpath='{.spec.domain}' 2>/dev/null || true)"
+  [ -n "$CLUSTER_DOMAIN" ] || { echo "could not derive cluster domain (oc get ingress.config.openshift.io cluster). Set CLUSTER_DOMAIN env." >&2; exit 1; }
+fi
+echo "Cluster domain: $CLUSTER_DOMAIN"
+
+# --- 2. vault root token ---
+if [ -z "${VAULT_TOKEN:-}" ]; then
+  VAULT_TOKEN="$(oc get secret vault-init -n vault -o jsonpath='{.data.root_token}' 2>/dev/null | base64 -d || true)"
+  [ -n "$VAULT_TOKEN" ] || { echo "could not fetch VAULT_TOKEN from secret vault-init -n vault (is the tree converged?). Set VAULT_TOKEN env." >&2; exit 1; }
+  echo "VAULT_TOKEN fetched from vault-init secret"
+fi
+export VAULT_TOKEN
+
+# --- 3. vault address (auto port-forward) ---
+PF_PID=""
+cleanup() { [ -n "$PF_PID" ] && kill "$PF_PID" 2>/dev/null || true; }
+trap cleanup EXIT
+if [ -z "${VAULT_ADDR:-}" ]; then
+  echo "Port-forwarding svc/vault (vault namespace) to localhost:8200"
+  oc -n vault port-forward svc/vault 8200:8200 >/dev/null 2>&1 &
+  PF_PID=$!
+  VAULT_ADDR="https://127.0.0.1:8200"
+  VAULT_SKIP_VERIFY=true
+  for i in $(seq 1 15); do
+    vault status >/dev/null 2>&1 && break
+    sleep 1
+  done
+fi
+export VAULT_ADDR
+export VAULT_SKIP_VERIFY="${VAULT_SKIP_VERIFY:-false}"
+
+# --- 4. ssh keypair ---
+if [ ! -f "$SSH_KEY_PATH" ]; then
+  mkdir -p "$(dirname "$SSH_KEY_PATH")"
+  ssh-keygen -t ed25519 -f "$SSH_KEY_PATH" -N "" -C "openshell-sandbox" >/dev/null
+  echo "SSH keypair generated at $SSH_KEY_PATH"
+fi
+
+# --- 5. seed vault ---
+for f in "$SSH_KEY_PATH" "$SSH_KEY_PATH.pub" "$GEMINI_API_KEY_PATH"; do
+  [ -f "$f" ] || { echo "required file missing: $f" >&2; exit 1; }
+done
+
+echo "Seeding vault at $VAULT_ADDR (secret/hub/*)"
+
+vault kv put secret/hub/ssh \
+  private_key=@"$SSH_KEY_PATH" \
+  public_key=@"$SSH_KEY_PATH.pub"
+
+vault kv put secret/hub/inference \
+  provider="$INFERENCE_PROVIDER" \
+  model="$INFERENCE_MODEL" \
+  api_key=@"$GEMINI_API_KEY_PATH"
+
+vault kv put secret/hub/web-search \
+  provider=none
+
+# --- 6. write derived cluster domain into the site values file (commit the result) ---
+if grep -q "CLUSTER_DOMAIN_PLACEHOLDER" "$SITE_VALUES" 2>/dev/null; then
+  sed -i "s|CLUSTER_DOMAIN_PLACEHOLDER|${CLUSTER_DOMAIN}|" "$SITE_VALUES"
+  echo "Updated $SITE_VALUES with cluster domain (commit this change)."
+fi
+
+echo "Done. ExternalSecrets in pattern-secrets will pull these at runtime."

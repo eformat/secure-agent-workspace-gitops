@@ -1,0 +1,12 @@
+# gitleaks config - see https://github.com/validatedpatterns/common/blob/main/.gitleaks.toml conventions
+title = "secure-agent-workspace-gitops gitleaks config"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "seed template placeholders and chart dev defaults"
+paths = [
+  '''secrets/seed-vault\.example\.yaml$''',
+  '''vendor/.*''',
+]

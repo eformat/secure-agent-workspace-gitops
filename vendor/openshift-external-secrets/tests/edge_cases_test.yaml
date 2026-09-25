@@ -1,0 +1,124 @@
+suite: Test edge cases and validation scenarios
+templates:
+  - templates/vault/external-secrets-hub-secretstore.yaml
+release:
+  name: release-test
+tests:
+  # Test with minimal configuration
+  - it: should work with minimal values and create vault secretstore
+    set:
+      global: {}
+      clusterGroup: {}
+      ocpExternalSecrets: {}
+    asserts:
+      - containsDocument:
+          kind: ClusterSecretStore
+          apiVersion: external-secrets.io/v1
+          name: vault-backend
+        documentSelector:
+          path: kind
+          value: ClusterSecretStore
+
+  # Test CA provider edge cases
+  - it: should handle missing caProvider configuration gracefully
+    set:
+      global:
+        secretStore:
+          backend: "vault"
+      ocpExternalSecrets:
+        caProvider:
+          enabled: false
+    asserts:
+      - notExists:
+          path: spec.provider.vault.caProvider
+
+  - it: should handle empty caProvider configuration
+    set:
+      global:
+        secretStore:
+          backend: "vault"
+      ocpExternalSecrets:
+        caProvider: {}
+    asserts:
+      - exists:
+          path: spec.provider.vault.caProvider
+
+  # Test applications array edge cases
+  - it: should handle empty applications array
+    set:
+      clusterGroup:
+        isHubCluster: false
+        applications: []
+      global:
+        secretStore:
+          backend: "vault"
+    asserts:
+      - equal:
+          path: spec.provider.vault.auth.kubernetes.mountPath
+          value: foo.example.com
+
+  - it: should handle missing applications key
+    set:
+      clusterGroup:
+        isHubCluster: false
+      global:
+        secretStore:
+          backend: "vault"
+    asserts:
+      - equal:
+          path: spec.provider.vault.auth.kubernetes.role
+          value: foo.example.com-role
+
+  # Test boolean value handling
+  - it: should handle isHubCluster as string true
+    set:
+      clusterGroup:
+        isHubCluster: "true"
+      global:
+        secretStore:
+          backend: "vault"
+    asserts:
+      - equal:
+          path: spec.provider.vault.auth.kubernetes.mountPath
+          value: hub
+
+  - it: should handle isHubCluster as boolean false
+    set:
+      clusterGroup:
+        isHubCluster: false
+      global:
+        secretStore:
+          backend: "vault"
+    asserts:
+      - equal:
+          path: spec.provider.vault.auth.kubernetes.mountPath
+          value: foo.example.com
+
+  # Test special characters in domain names
+  - it: should handle domain names with hyphens and numbers
+    set:
+      global:
+        hubClusterDomain: "hub-cluster-01.test-domain.local"
+        clusterDomain: "spoke-01.test-domain.local"
+        secretStore:
+          backend: "vault"
+      clusterGroup:
+        isHubCluster: false
+    asserts:
+      - equal:
+          path: spec.provider.vault.server
+          value: "https://vault-vault.hub-cluster-01.test-domain.local"
+      - equal:
+          path: spec.provider.vault.auth.kubernetes.role
+          value: "spoke-01.test-domain.local-role"
+
+  # Test API version consistency
+  - it: should use correct API version for ClusterSecretStore in vault backend
+    set:
+      global:
+        secretStore:
+          backend: "vault"
+    asserts:
+      - equal:
+          path: apiVersion
+          value: external-secrets.io/v1

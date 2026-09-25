@@ -1,0 +1,266 @@
+suite: Test ocp_eso.ishubcluster helper function
+templates:
+  - templates/vault/external-secrets-hub-secretstore.yaml
+release:
+  name: release-test
+tests:
+  # ============================================================================
+  # Tests when clusterGroup.isHubCluster is EXPLICITLY SET
+  # These should take precedence over domain logic
+  # ============================================================================
+
+  - it: should use isHubCluster=true when explicitly set, ignoring domain logic
+    set:
+      clusterGroup:
+        isHubCluster: true
+      global:
+        hubClusterDomain: "hub.example.com"
+        localClusterDomain: "spoke.example.com"
+        clusterDomain: "spoke.example.com"
+        secretStore:
+          backend: "vault"
+    asserts:
+      - equal:
+          path: spec.provider.vault.auth.kubernetes.mountPath
+          value: hub
+      - equal:
+          path: spec.provider.vault.auth.kubernetes.role
+          value: hub-role
+
+  - it: should use isHubCluster=false when explicitly set, ignoring matching domains
+    set:
+      clusterGroup:
+        isHubCluster: false
+      global:
+        hubClusterDomain: "hub.example.com"
+        localClusterDomain: "hub.example.com"
+        clusterDomain: "spoke.example.com"
+        secretStore:
+          backend: "vault"
+    asserts:
+      - equal:
+          path: spec.provider.vault.auth.kubernetes.mountPath
+          value: spoke.example.com
+      - equal:
+          path: spec.provider.vault.auth.kubernetes.role
+          value: spoke.example.com-role
+
+  # ============================================================================
+  # Tests when clusterGroup.isHubCluster is UNSET
+  # These should fall back to domain comparison logic
+  # ============================================================================
+
+  - it: should detect hub cluster when localClusterDomain equals hubClusterDomain
+    set:
+      clusterGroup:
+        isHubCluster: null
+      global:
+        hubClusterDomain: "hub.example.com"
+        localClusterDomain: "hub.example.com"
+        clusterDomain: "hub.example.com"
+        secretStore:
+          backend: "vault"
+    asserts:
+      - equal:
+          path: spec.provider.vault.auth.kubernetes.mountPath
+          value: hub
+      - equal:
+          path: spec.provider.vault.auth.kubernetes.role
+          value: hub-role
+
+  - it: should detect spoke cluster when localClusterDomain differs from hubClusterDomain
+    set:
+      clusterGroup:
+        isHubCluster: null
+      global:
+        hubClusterDomain: "hub.example.com"
+        localClusterDomain: "spoke.example.com"
+        clusterDomain: "spoke.example.com"
+        secretStore:
+          backend: "vault"
+    asserts:
+      - equal:
+          path: spec.provider.vault.auth.kubernetes.mountPath
+          value: spoke.example.com
+      - equal:
+          path: spec.provider.vault.auth.kubernetes.role
+          value: spoke.example.com-role
+
+  - it: should detect hub cluster when localClusterDomain is not set (defaults to hubClusterDomain)
+    set:
+      clusterGroup:
+        isHubCluster: null
+      global:
+        hubClusterDomain: "hub.example.com"
+        clusterDomain: "hub.example.com"
+        secretStore:
+          backend: "vault"
+    asserts:
+      - equal:
+          path: spec.provider.vault.auth.kubernetes.mountPath
+          value: hub
+      - equal:
+          path: spec.provider.vault.auth.kubernetes.role
+          value: hub-role
+
+  - it: should detect spoke cluster when only hubClusterDomain set and clusterDomain differs
+    set:
+      clusterGroup:
+        isHubCluster: null
+      global:
+        hubClusterDomain: "hub.example.com"
+        clusterDomain: "spoke.example.com"
+        secretStore:
+          backend: "vault"
+    asserts:
+      - equal:
+          path: spec.provider.vault.auth.kubernetes.mountPath
+          value: hub
+      - equal:
+          path: spec.provider.vault.auth.kubernetes.role
+          value: hub-role
+
+  - it: should default to false (spoke) when hubClusterDomain is not set
+    set:
+      clusterGroup:
+        isHubCluster: null
+      global:
+        hubClusterDomain: null
+        localClusterDomain: "spoke.example.com"
+        clusterDomain: "spoke.example.com"
+        secretStore:
+          backend: "vault"
+    asserts:
+      - equal:
+          path: spec.provider.vault.auth.kubernetes.mountPath
+          value: spoke.example.com
+      - equal:
+          path: spec.provider.vault.auth.kubernetes.role
+          value: spoke.example.com-role
+
+  - it: should default to false (spoke) when no domain configuration is provided
+    set:
+      clusterGroup:
+        isHubCluster: null
+      global:
+        hubClusterDomain: null
+        clusterDomain: "spoke.example.com"
+        secretStore:
+          backend: "vault"
+    asserts:
+      - equal:
+          path: spec.provider.vault.auth.kubernetes.mountPath
+          value: spoke.example.com
+      - equal:
+          path: spec.provider.vault.auth.kubernetes.role
+          value: spoke.example.com-role
+
+  # ============================================================================
+  # Tests for caProvider selection based on ishubcluster result
+  # ============================================================================
+
+  - it: should use hostCluster caProvider when detected as hub via domain match
+    set:
+      clusterGroup:
+        isHubCluster: null
+      global:
+        hubClusterDomain: "hub.example.com"
+        localClusterDomain: "hub.example.com"
+        clusterDomain: "hub.example.com"
+        secretStore:
+          backend: "vault"
+      ocpExternalSecrets:
+        caProvider:
+          enabled: true
+    asserts:
+      - equal:
+          path: spec.provider.vault.caProvider.type
+          value: ConfigMap
+      - equal:
+          path: spec.provider.vault.caProvider.name
+          value: kube-root-ca.crt
+
+  - it: should use clientCluster caProvider when detected as spoke via domain mismatch
+    set:
+      clusterGroup:
+        isHubCluster: null
+      global:
+        hubClusterDomain: "hub.example.com"
+        localClusterDomain: "spoke.example.com"
+        clusterDomain: "spoke.example.com"
+        secretStore:
+          backend: "vault"
+      ocpExternalSecrets:
+        caProvider:
+          enabled: true
+    asserts:
+      - equal:
+          path: spec.provider.vault.caProvider.type
+          value: Secret
+      - equal:
+          path: spec.provider.vault.caProvider.name
+          value: hub-ca
+
+  # ============================================================================
+  # Edge cases for domain comparison
+  # ============================================================================
+
+  - it: should handle domains with subdomains correctly - matching
+    set:
+      clusterGroup:
+        isHubCluster: null
+      global:
+        hubClusterDomain: "hub.apps.cluster.example.com"
+        localClusterDomain: "hub.apps.cluster.example.com"
+        clusterDomain: "hub.apps.cluster.example.com"
+        secretStore:
+          backend: "vault"
+    asserts:
+      - equal:
+          path: spec.provider.vault.auth.kubernetes.mountPath
+          value: hub
+
+  - it: should handle domains with subdomains correctly - not matching
+    set:
+      clusterGroup:
+        isHubCluster: null
+      global:
+        hubClusterDomain: "hub.apps.cluster.example.com"
+        localClusterDomain: "spoke.apps.cluster.example.com"
+        clusterDomain: "spoke.apps.cluster.example.com"
+        secretStore:
+          backend: "vault"
+    asserts:
+      - equal:
+          path: spec.provider.vault.auth.kubernetes.mountPath
+          value: spoke.apps.cluster.example.com
+
+  - it: should treat empty localClusterDomain as unset (default to hubClusterDomain)
+    set:
+      clusterGroup:
+        isHubCluster: null
+      global:
+        hubClusterDomain: "hub.example.com"
+        localClusterDomain: ""
+        clusterDomain: "hub.example.com"
+        secretStore:
+          backend: "vault"
+    asserts:
+      - equal:
+          path: spec.provider.vault.auth.kubernetes.mountPath
+          value: hub
+
+  - it: should handle empty hubClusterDomain as unset (default to false)
+    set:
+      clusterGroup:
+        isHubCluster: null
+      global:
+        hubClusterDomain: ""
+        localClusterDomain: "spoke.example.com"
+        clusterDomain: "spoke.example.com"
+        secretStore:
+          backend: "vault"
+    asserts:
+      - equal:
+          path: spec.provider.vault.auth.kubernetes.mountPath
+          value: spoke.example.com

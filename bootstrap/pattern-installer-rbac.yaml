@@ -1,0 +1,59 @@
+---
+# Least-privilege installer SA from a static RBAC trace of rhvp.cluster_utils.install.
+# With the app-of-apps flow the SA effectively only exercises the applications.argoproj.io
+# rule (applying the root Application); the remaining rules document the legacy imperative
+# path's minimum. No delete verbs anywhere in the install path.
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: pattern-installer
+  namespace: openshift-gitops
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: pattern-installer
+rules:
+- apiGroups: [""]
+  resources: ["namespaces"]
+  verbs: ["get", "list", "create"]
+- apiGroups: ["storage.k8s.io"]
+  resources: ["storageclasses"]
+  verbs: ["get", "list"]
+- apiGroups: ["config.openshift.io"]
+  resources: ["clusterversions"]
+  verbs: ["get"]
+- apiGroups: ["argoproj.io"]
+  resources: ["applications"]
+  verbs: ["get", "list", "create", "patch"]
+- apiGroups: ["operators.coreos.com"]
+  resources: ["operatorgroups", "subscriptions"]
+  verbs: ["get", "create", "patch"]
+- apiGroups: ["gitops.hybrid-cloud-patterns.io"]
+  resources: ["patterns"]
+  verbs: ["get", "create", "patch"]
+- apiGroups: [""]
+  resources: ["configmaps", "secrets"]
+  verbs: ["get", "create", "patch"]
+- apiGroups: [""]
+  resources: ["pods"]
+  verbs: ["get", "list"]
+- apiGroups: [""]
+  resources: ["pods/exec"]
+  verbs: ["create"]
+- apiGroups: ["packages.operators.coreos.com"]
+  resources: ["packagemanifests"]
+  verbs: ["get"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: pattern-installer
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: pattern-installer
+subjects:
+- kind: ServiceAccount
+  name: pattern-installer
+  namespace: openshift-gitops

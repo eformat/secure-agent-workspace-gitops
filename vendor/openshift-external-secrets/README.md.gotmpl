@@ -1,0 +1,80 @@
+{{ template "chart.header" . }}
+{{ template "chart.deprecationWarning" . }}
+
+{{ template "chart.badgesSection" . }}
+
+{{ template "chart.description" . }}
+
+## Notable changes
+
+v0.0.4: Add vault.externalAddress to allow configuration of separate, unmanaged vault
+
+## Using a completely external Vault
+
+Use this when HashiCorp Vault is **not** deployed by Validated Patterns on the hub (for example a shared corporate Vault or a cluster-external service).
+
+1. **ClusterSecretStore backend** – Keep `global.secretStore.backend` as `vault` (or omit it; the chart defaults to Vault).
+
+2. **Vault API URL** – Set `ocpExternalSecrets.vault.externalAddress` to the reachable HTTPS base URL of your Vault (same value you would put in `spec.provider.vault.server`), for example `https://vault.example.corp:8200`. When this is empty, the chart targets the framework hub route `vault-vault.<global.hubClusterDomain>` instead.
+
+3. **KV engine** – Optional. Under `ocpExternalSecrets.vault.external`, set `kvPath` and/or `kvVersion` if your mount is not the default path `secret` or not KV v2. These keys are **only** read when `externalAddress` is non-empty; otherwise they are ignored.
+
+4. **Arbitrary external auth provider** – When `ocpExternalSecrets.vault.externalAddress` is non-empty, you can provide `ocpExternalSecrets.vault.external.auth` to inject any supported ESO Vault auth block directly into `spec.provider.vault.auth` (for example AppRole, token, JWT/OIDC, LDAP, cert). This is the recommended path when your external Vault does not use Kubernetes auth from this chart.
+
+5. **Kubernetes auth on the external Vault** – If you do not set `ocpExternalSecrets.vault.external.auth`, the chart uses Kubernetes auth. On the Vault side, configure a Kubernetes auth mount and role that trust the External Secrets Operator service account (`ocpExternalSecrets.rbac.serviceAccount` in this chart). In values, you can pin the store to that Vault configuration by setting **both** `ocpExternalSecrets.vault.external.kubernetesMountPath` and `ocpExternalSecrets.vault.external.kubernetesRole`. If either is left empty, the chart falls back to the usual hub/spoke auth fields (`vault.mountPath`, `rbac.rolename`, or spoke `global.clusterDomain`), which may not match your external Vault and should be overridden for a fully external setup.
+
+6. **External Kubernetes auth token Secret reference** – When `ocpExternalSecrets.vault.externalAddress` is non-empty and you use the Kubernetes auth fallback path, you must set:
+   - `ocpExternalSecrets.vault.external.secretRef.name`
+   - `ocpExternalSecrets.vault.external.secretRef.namespace`
+   - `ocpExternalSecrets.vault.external.secretRef.key`
+
+   These values are used directly in `spec.provider.vault.auth.kubernetes.secretRef` and should point to an existing Secret that contains the JWT token expected by your external Vault Kubernetes auth mount. They are ignored when `ocpExternalSecrets.vault.external.auth` is set.
+
+7. **TLS / CA** – If Vault presents a certificate signed by a CA that is not the cluster default, keep `ocpExternalSecrets.caProvider.enabled` true and point `hostCluster` or `clientCluster` at a ConfigMap or Secret that holds the PEM for that CA, depending on whether you render this chart on the hub or a spoke.
+
+8. **Special Note** – The patterns framework will be unable to manage authentication, policy or inject secrets into a vault that it does not manage. In such cases, set `global.secretLoader.disabled` to `true` (in `values-global.yaml`) to prevent the secret loader from running locally during the `make install` phase.
+
+Example fragment:
+
+```yaml
+global:
+  secretStore:
+    backend: vault
+
+ocpExternalSecrets:
+  vault:
+    externalAddress: "https://vault.example.corp:8200"
+    external:
+      kvPath: "kv/my-team"
+      kvVersion: "v2"
+      auth:
+        appRole:
+          path: "approle"
+          roleRef:
+            name: "vault-approle"
+            key: "role-id"
+          secretRef:
+            name: "vault-approle"
+            key: "secret-id"
+  caProvider:
+    enabled: true
+    hostCluster:
+      type: Secret
+      name: corp-vault-ca
+      key: ca.crt
+      namespace: external-secrets
+```
+
+{{ template "chart.homepageLine" . }}
+
+{{ template "chart.maintainersSection" . }}
+
+{{ template "chart.sourcesSection" . }}
+
+{{ template "chart.requirementsSection" . }}
+
+<!-- prettier-ignore-start -->
+{{ template "chart.valuesSection" . }}
+
+{{ template "helm-docs.versionFooter" . }}
+<!-- prettier-ignore-end -->

@@ -1,0 +1,22 @@
+---
+# In-cluster vault URL avoids cluster-specific DNS; CA from the OpenShift
+# service-ca.crt ConfigMap (injected in every namespace by the service CA
+# controller). Do NOT use kube-root-ca.crt - it holds the kube-apiserver-lb-signer
+# CA, not the service CA that signs vault's internal cert -> x509: unknown authority.
+ocpExternalSecrets:
+  vault:
+    externalAddress: https://vault.vault.svc.cluster.local:8200
+    external:
+      secretRef:
+        name: ocp-external-secrets
+        namespace: external-secrets
+        key: token
+  caProvider:
+    enabled: true
+    hostCluster:
+      type: ConfigMap
+      name: service-ca.crt
+      key: service-ca.crt
+      namespace: external-secrets
+clusterGroup:
+  isHubCluster: true

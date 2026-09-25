@@ -1,0 +1,32 @@
+---
+name: Helm lint
+
+on:
+  push:
+    branches: ["main"]
+    tags: ["v*.*.*"]
+  pull_request:
+    branches: ["main"]
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Run helm lint over the chart
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+
+      - name: Setup helm
+        uses: azure/setup-helm@1a275c3b69536ee54be43f2070a358922e12c8d4 # v4.3.1
+        with:
+          version: "v3.14.0"
+
+      - name: Run make helmlint
+        run: |
+          make helm-lint

@@ -1,0 +1,24 @@
+---
+# Site-specific values for openshell-saw. global.clusterDomain is derived from
+# the connected cluster by `make seed-vault` (oc get ingress.config.openshift.io
+# cluster) and substituted here - commit the derived value. The chart helpers
+# resolve the OIDC issuer URL and gateway route host from it.
+global:
+  clusterDomain: CLUSTER_DOMAIN_PLACEHOLDER
+
+accessControl:
+  owner: alice
+
+job:
+  waitForSecrets: true
+  backoffLimit: 5
+  # *.apps hostnames resolve to the external LB VIP from pods, which is not
+  # reachable at :443 on this cluster — route them via the worker node
+  # (HostNetwork ingress router) instead.
+  hostAliases:
+    - hostnames:
+        - hyperconverged-cluster-cli-download-openshift-cnv.apps.cluster-64d62.dyn.redhatworkshops.io
+      ip: 10.10.10.10
+
+dashboard:
+  insecureSkipIssuerTlsVerify: true

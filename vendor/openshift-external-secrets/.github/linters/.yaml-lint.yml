@@ -1,0 +1,17 @@
+---
+extends: default
+
+ignore: |
+  templates/
+
+rules:
+  document-start: disable
+  line-length:
+    max: 150
+    allow-non-breakable-inline-mappings: true
+    allow-non-breakable-words: true
+  braces: disable
+  brackets: disable
+  indentation: disable
+  truthy: disable
+  comments: disable
