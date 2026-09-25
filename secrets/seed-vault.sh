@@ -62,6 +62,8 @@ INFERENCE_BASE_URL="${INFERENCE_BASE_URL:-${SEED_INF_BASE_URL:-}}"
 # --- 1. derive cluster domain ---
 if [ -z "${CLUSTER_DOMAIN:-}" ]; then
   CLUSTER_DOMAIN="$(oc get ingress.config.openshift.io cluster -o jsonpath='{.spec.domain}' 2>/dev/null || true)"
+  # the chart helpers prepend "apps." themselves - strip the prefix
+  CLUSTER_DOMAIN="${CLUSTER_DOMAIN#apps.}"
   [ -n "$CLUSTER_DOMAIN" ] || { echo "could not derive cluster domain (oc get ingress.config.openshift.io cluster). Set CLUSTER_DOMAIN env." >&2; exit 1; }
 fi
 echo "Cluster domain: $CLUSTER_DOMAIN"

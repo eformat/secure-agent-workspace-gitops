@@ -4,7 +4,7 @@
 # cluster) and substituted here - commit the derived value. The chart helpers
 # resolve the OIDC issuer URL and gateway route host from it.
 global:
-  clusterDomain: apps.cluster-kvhfx.dyn.redhatworkshops.io
+  clusterDomain: cluster-kvhfx.dyn.redhatworkshops.io
 
 accessControl:
   owner: alice
