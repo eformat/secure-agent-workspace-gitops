@@ -61,8 +61,10 @@ until vault status -format=json > /tmp/status.json 2>/dev/null || [ -s /tmp/stat
   sleep 5
 done
 
-INITIALIZED=$(grep -o '"initialized":[a-z]*' /tmp/status.json | cut -d: -f2)
-SEALED=$(grep -o '"sealed":[a-z]*' /tmp/status.json | cut -d: -f2)
+# status output is pretty-printed - compact before parsing
+_status_compact=$(tr -d ' \n' < /tmp/status.json)
+INITIALIZED=$(printf '%s' "$_status_compact" | grep -o '"initialized":[a-z]*' | cut -d: -f2)
+SEALED=$(printf '%s' "$_status_compact" | grep -o '"sealed":[a-z]*' | cut -d: -f2)
 
 if [ "$INITIALIZED" != "true" ]; then
   echo "Initializing vault (1 key share, 1 threshold)"
