@@ -1,6 +1,6 @@
 ARGO_NS := openshift-gitops
 ROOT_APP := secure-agent-workspace
-REPO_URL ?= $(shell git remote get-url origin 2>/dev/null || echo https://github.com/eformat/secure-agent-workspace-gitops.git)
+REPO_URL ?= $(shell git remote get-url origin 2>/dev/null | sed 's|git@\([^:]*\):\(.*\)\.git$$|https://\1/\2|' || echo https://github.com/eformat/secure-agent-workspace-gitops.git)
 
 .DEFAULT_GOAL := help
 MAKEFLAGS += --no-print-directory

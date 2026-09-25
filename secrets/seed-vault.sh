@@ -30,6 +30,35 @@ GEMINI_API_KEY_PATH="${GEMINI_API_KEY_PATH:-$HOME/.gemini-api-key}"
 INFERENCE_PROVIDER="${INFERENCE_PROVIDER:-gemini}"
 INFERENCE_MODEL="${INFERENCE_MODEL:-gemini-2.5-flash}"
 
+# --- seed-vault.yaml (gitignored real values) overrides defaults ---
+SEED_YAML="${REPO_DIR}/secrets/seed-vault.yaml"
+if [ -f "$SEED_YAML" ]; then
+  echo "Reading seed values from $SEED_YAML"
+  eval "$(python3 - "$SEED_YAML" <<'PYEOF'
+import sys, yaml, shlex
+d = yaml.safe_load(open(sys.argv[1]))
+inf = d.get("inference", {}) or {}
+ws = d.get("web_search", {}) or {}
+ssh = d.get("ssh", {}) or {}
+def out(k, v):
+    if v is not None and str(v) != "":
+        print(f"{k}={shlex.quote(str(v))}")
+out("SEED_INF_PROVIDER", inf.get("provider"))
+out("SEED_INF_MODEL", inf.get("model"))
+out("SEED_INF_API_KEY", inf.get("api_key"))
+out("SEED_INF_API_KEY_PATH", inf.get("api_key_path"))
+out("SEED_INF_BASE_URL", inf.get("base_url"))
+out("SEED_WS_PROVIDER", ws.get("provider"))
+out("SEED_WS_API_KEY", ws.get("api_key"))
+out("SEED_SSH_KEY_PATH", ssh.get("private_key_path"))
+out("SEED_SSH_PUB_PATH", ssh.get("public_key_path"))
+PYEOF
+)" || { echo "failed to parse $SEED_YAML" >&2; exit 1; }
+  [ -n "${SEED_INF_PROVIDER:-}" ] && INFERENCE_PROVIDER="$SEED_INF_PROVIDER"
+  [ -n "${SEED_INF_MODEL:-}" ] && INFERENCE_MODEL="$SEED_INF_MODEL"
+fi
+INFERENCE_BASE_URL="${INFERENCE_BASE_URL:-${SEED_INF_BASE_URL:-}}"
+
 # --- 1. derive cluster domain ---
 if [ -z "${CLUSTER_DOMAIN:-}" ]; then
   CLUSTER_DOMAIN="$(oc get ingress.config.openshift.io cluster -o jsonpath='{.spec.domain}' 2>/dev/null || true)"
@@ -64,30 +93,49 @@ export VAULT_ADDR
 export VAULT_SKIP_VERIFY="${VAULT_SKIP_VERIFY:-false}"
 
 # --- 4. ssh keypair ---
-if [ ! -f "$SSH_KEY_PATH" ]; then
-  mkdir -p "$(dirname "$SSH_KEY_PATH")"
-  ssh-keygen -t ed25519 -f "$SSH_KEY_PATH" -N "" -C "openshell-sandbox" >/dev/null
-  echo "SSH keypair generated at $SSH_KEY_PATH"
+SSH_PRIV="${SEED_SSH_KEY_PATH:-$SSH_KEY_PATH}"
+SSH_PUB="${SEED_SSH_PUB_PATH:-$SSH_KEY_PATH.pub}"
+if [ ! -f "$SSH_PRIV" ]; then
+  mkdir -p "$(dirname "$SSH_PRIV")"
+  ssh-keygen -t ed25519 -f "$SSH_PRIV" -N "" -C "openshell-sandbox" >/dev/null
+  echo "SSH keypair generated at $SSH_PRIV"
 fi
 
 # --- 5. seed vault ---
-for f in "$SSH_KEY_PATH" "$SSH_KEY_PATH.pub" "$GEMINI_API_KEY_PATH"; do
-  [ -f "$f" ] || { echo "required file missing: $f" >&2; exit 1; }
-done
+# inference api key: inline value (seed-vault.yaml) or file path
+INF_API_KEY="${SEED_INF_API_KEY:-}"
+if [ -z "$INF_API_KEY" ] && [ -n "${SEED_INF_API_KEY_PATH:-}" ]; then
+  INF_API_KEY="$(cat "${SEED_INF_API_KEY_PATH/#\~/$HOME}")"
+fi
+if [ -z "$INF_API_KEY" ]; then
+  INF_API_KEY_PATH="${GEMINI_API_KEY_PATH/#\~/$HOME}"
+  [ -f "$INF_API_KEY_PATH" ] || { echo "required file missing: $INF_API_KEY_PATH (or set api_key in seed-vault.yaml)" >&2; exit 1; }
+  INF_API_KEY="$(cat "$INF_API_KEY_PATH")"
+fi
+
+WS_PROVIDER="${SEED_WS_PROVIDER:-none}"
+WS_API_KEY="${SEED_WS_API_KEY:-}"
 
 echo "Seeding vault at $VAULT_ADDR (secret/hub/*)"
 
 vault kv put secret/hub/ssh \
-  private_key=@"$SSH_KEY_PATH" \
-  public_key=@"$SSH_KEY_PATH.pub"
+  private_key=@"$SSH_PRIV" \
+  public_key=@"$SSH_PUB"
 
 vault kv put secret/hub/inference \
   provider="$INFERENCE_PROVIDER" \
   model="$INFERENCE_MODEL" \
-  api_key=@"$GEMINI_API_KEY_PATH"
+  api_key="$INF_API_KEY" \
+  base_url="$INFERENCE_BASE_URL"
 
-vault kv put secret/hub/web-search \
-  provider=none
+if [ -n "$WS_API_KEY" ]; then
+  vault kv put secret/hub/web-search \
+    provider="$WS_PROVIDER" \
+    api_key="$WS_API_KEY"
+else
+  vault kv put secret/hub/web-search \
+    provider="$WS_PROVIDER"
+fi
 
 # --- 6. write derived cluster domain into the site values file (commit the result) ---
 if grep -q "CLUSTER_DOMAIN_PLACEHOLDER" "$SITE_VALUES" 2>/dev/null; then
