@@ -10,7 +10,7 @@ spec:
     server: https://kubernetes.default.svc
     namespace: openshift-gitops
   source:
-    repoURL: REPO_URL_PLACEHOLDER
+    repoURL: https://github.com/eformat/secure-agent-workspace-gitops
     targetRevision: main
     path: app-of-apps/hub
     directory:

@@ -12,7 +12,7 @@ spec:
     server: https://kubernetes.default.svc
     namespace: openshell-agents
   source:
-    repoURL: REPO_URL_PLACEHOLDER
+    repoURL: https://github.com/eformat/secure-agent-workspace-gitops
     targetRevision: main
     path: applications/governance-interceptor/base
   syncPolicy:

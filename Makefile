@@ -10,12 +10,10 @@ help: ## Print this help message
 	@awk 'BEGIN {FS = ":.*##"; printf "Usage:\n  make \033[36m<target>\033[0m\n"} /^[a-zA-Z_-]+:.*?##/ { printf "  \033[36m%-15s\033[0m %s\n", $$1, $$2 }' $(MAKEFILE_LIST)
 
 .PHONY: bootstrap
-bootstrap: ## Apply bootstrap RBAC + root Application (repoURL resolved from git remote)
+bootstrap: ## Apply bootstrap RBAC + root Application (children sync from git)
 	@oc apply -f bootstrap/
-	@for f in app-of-apps/root-application.yaml app-of-apps/hub/*.yaml; do \
-		sed "s|REPO_URL_PLACEHOLDER|$(REPO_URL)|g" $$f | oc apply -n $(ARGO_NS) -f -; \
-	done
-	@echo "Root application applied (repoURL: $(REPO_URL))"
+	@oc apply -f app-of-apps/root-application.yaml
+	@echo "Root application applied - children sync from git (repoURL: $(REPO_URL))"
 
 .PHONY: wait
 wait: ## Poll root Application sync/health until converged

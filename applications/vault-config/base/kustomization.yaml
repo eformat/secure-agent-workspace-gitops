@@ -5,6 +5,7 @@ namespace: vault
 resources:
   - rbac.yaml
   - job.yaml
+  - service-ca-cm.yaml
 configMapGenerator:
   - name: vault-config-scripts
     files:

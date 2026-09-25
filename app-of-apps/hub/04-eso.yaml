@@ -13,7 +13,7 @@ spec:
     server: https://kubernetes.default.svc
     namespace: external-secrets
   source:
-    repoURL: REPO_URL_PLACEHOLDER
+    repoURL: https://github.com/eformat/secure-agent-workspace-gitops
     targetRevision: main
     path: applications/eso/base
   syncPolicy:

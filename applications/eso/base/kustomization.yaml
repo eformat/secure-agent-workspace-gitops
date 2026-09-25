@@ -9,3 +9,5 @@ helmCharts:
     includeCRDs: true
     releaseName: openshift-external-secrets
     valuesFile: values.yaml
+resources:
+  - service-ca-cm.yaml

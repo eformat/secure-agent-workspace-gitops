@@ -11,7 +11,7 @@ spec:
   destination:
     server: https://kubernetes.default.svc
   source:
-    repoURL: REPO_URL_PLACEHOLDER
+    repoURL: https://github.com/eformat/secure-agent-workspace-gitops
     targetRevision: main
     path: applications/subscriptions
   syncPolicy:

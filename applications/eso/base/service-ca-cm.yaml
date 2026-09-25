@@ -1,0 +1,11 @@
+---
+# The service CA controller injects the CA bundle into ConfigMaps annotated
+# with inject-cabundle (they do not pre-exist in a namespace). Referenced by
+# the vault-backend ClusterSecretStore caProvider.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: service-ca.crt
+  namespace: external-secrets
+  annotations:
+    service.beta.openshift.io/inject-cabundle: "true"
