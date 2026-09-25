@@ -1,4 +1,3 @@
----
 path "secret/data/hub/*" {
   capabilities = ["read"]
 }
