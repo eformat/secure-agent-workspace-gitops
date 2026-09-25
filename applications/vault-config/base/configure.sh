@@ -99,6 +99,9 @@ if [ -z "${VAULT_TOKEN:-}" ]; then
   export VAULT_TOKEN
 fi
 
+echo "Enabling kv-v2 engine at path 'secret' (idempotent)"
+vault secrets list -format=json | grep -q '"secret/"' || vault secrets enable -path=secret kv-v2
+
 echo "Enabling kubernetes auth at path 'hub' (idempotent)"
 vault auth list -format=json | grep -q '"hub/"' || vault auth enable -path=hub kubernetes
 
