@@ -50,7 +50,9 @@ extract_init_field() {
 
 echo "Waiting for vault api at $VAULT_ADDR"
 i=0
-until vault status -format=json > /tmp/status.json 2>/dev/null; do
+# vault status exits non-zero for uninitialized/sealed vaults - accept any
+# response as long as the API returned JSON
+until vault status -format=json > /tmp/status.json 2>/dev/null || [ -s /tmp/status.json ]; do
   i=$((i + 1))
   if [ "$i" -gt 60 ]; then
     echo "vault api unreachable after 60 attempts" >&2
