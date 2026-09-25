@@ -67,8 +67,12 @@ SEALED=$(grep -o '"sealed":[a-z]*' /tmp/status.json | cut -d: -f2)
 if [ "$INITIALIZED" != "true" ]; then
   echo "Initializing vault (1 key share, 1 threshold)"
   vault operator init -key-shares=1 -key-threshold=1 -format=json > /tmp/init.json
-  _root=$(sed -n 's/.*"root_token":"\([^"]*\)".*/\1/p' /tmp/init.json)
-  _key=$(sed -n 's/.*"unseal_keys_b64":\["\([^"]*\)".*/\1/p' /tmp/init.json)
+  # init output is pretty-printed - compact before parsing
+  _init_compact=$(tr -d ' \n' < /tmp/init.json)
+  _root=$(printf '%s' "$_init_compact" | sed -n 's/.*"root_token":"\([^"]*\)".*/\1/p')
+  _key=$(printf '%s' "$_init_compact" | sed -n 's/.*"unseal_keys_b64":\["\([^"]*\)".*/\1/p')
+  [ -n "$_root" ] || { echo "FATAL: failed to parse root_token from init output - vault keys would be lost" >&2; exit 1; }
+  [ -n "$_key" ] || { echo "FATAL: failed to parse unseal_key from init output - vault keys would be lost" >&2; exit 1; }
   if k8s_get_secret | grep -q '"kind":"Secret"'; then
     _rv=$(k8s_get_secret | sed -n 's/.*"resourceVersion":"\([^"]*\)".*/\1/p')
     k8s_replace_secret "$_rv" "$_root" "$_key"
