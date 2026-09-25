@@ -105,6 +105,19 @@ data:
       - |
         set -euo pipefail
         echo "=== Configuring OpenShell gateway ==="
+        {{- if .Values.vm.ingressNodeIP }}
+        # *.apps route hostnames resolve to an external VIP unreachable from
+        # the VM - pin them to the HostNetwork ingress router node IP.
+        {{- $routeHost := include "openshell-sandbox.routeHost" . }}
+        {{- $oidcIssuer := include "openshell-sandbox.oidcIssuerUrl" . }}
+        {{- if $routeHost }}
+        grep -q {{ $routeHost | quote }} /etc/hosts || echo "{{ .Values.vm.ingressNodeIP }} {{ $routeHost }}" >> /etc/hosts
+        {{- end }}
+        {{- if $oidcIssuer }}
+        KEYCLOAK_HOST=$(printf '%s' {{ $oidcIssuer | quote }} | sed -n 's|https://\([^/]*\)/.*|\1|p')
+        grep -q "$KEYCLOAK_HOST" /etc/hosts || echo "{{ .Values.vm.ingressNodeIP }} $KEYCLOAK_HOST" >> /etc/hosts
+        {{- end }}
+        {{- end }}
         USER_NAME="cloud-user"
         USER_HOME="$(getent passwd "${USER_NAME}" | cut -d: -f6)"
         install -d -m 0750 -o root -g "${USER_NAME}" /etc/openshell

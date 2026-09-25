@@ -38,10 +38,10 @@ source:
 
 vm:
   cores: 4
-  # Extra pod hostAliases for the VM. Needed on clusters where *.apps route
-  # hostnames (keycloak OIDC, gateway FQDN) resolve to an external VIP that
-  # the VM cannot reach at :443.
-  hostAliases: []
+  # Node IP of the HostNetwork ingress router. Needed on clusters where *.apps
+  # route hostnames (keycloak OIDC, gateway FQDN) resolve to an external VIP
+  # that the VM cannot reach at :443 — written to the VM's /etc/hosts by cloud-init.
+  ingressNodeIP: ""
   memory: 8Gi
   diskSize: 40Gi
 
