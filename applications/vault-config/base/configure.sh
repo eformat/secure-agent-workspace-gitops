@@ -13,19 +13,19 @@ k8s_token() {
 }
 
 k8s_get_secret() {
-  wget -q --ca-certificate="$SA_CA" \
-    --header="Authorization: Bearer $(k8s_token)" \
-    -O- "$K8S_API/api/v1/namespaces/vault/secrets/$INIT_SECRET" 2>/dev/null || true
+  curl -sf --cacert "$SA_CA" \
+    -H "Authorization: Bearer $(k8s_token)" \
+    "$K8S_API/api/v1/namespaces/vault/secrets/$INIT_SECRET" 2>/dev/null || true
 }
 
 k8s_create_secret() {
   _root_token="$1"
   _unseal_key="$2"
   _data="{\"apiVersion\":\"v1\",\"kind\":\"Secret\",\"metadata\":{\"name\":\"$INIT_SECRET\",\"namespace\":\"vault\"},\"stringData\":{\"root_token\":\"$_root_token\",\"unseal_key\":\"$_unseal_key\"}}"
-  wget -q --ca-certificate="$SA_CA" \
-    --header="Authorization: Bearer $(k8s_token)" \
-    --header="Content-Type: application/json" \
-    --post-data="$_data" -O- \
+  curl -sf --cacert "$SA_CA" \
+    -H "Authorization: Bearer $(k8s_token)" \
+    -H "Content-Type: application/json" \
+    -X POST -d "$_data" \
     "$K8S_API/api/v1/namespaces/vault/secrets" > /dev/null
 }
 
@@ -34,10 +34,10 @@ k8s_replace_secret() {
   _root_token="$2"
   _unseal_key="$3"
   _data="{\"apiVersion\":\"v1\",\"kind\":\"Secret\",\"metadata\":{\"name\":\"$INIT_SECRET\",\"namespace\":\"vault\",\"resourceVersion\":\"$_rv\"},\"stringData\":{\"root_token\":\"$_root_token\",\"unseal_key\":\"$_unseal_key\"}}"
-  wget -q --ca-certificate="$SA_CA" \
-    --header="Authorization: Bearer $(k8s_token)" \
-    --header="Content-Type: application/json" \
-    --post-data="$_data" -O- \
+  curl -sf --cacert "$SA_CA" \
+    -H "Authorization: Bearer $(k8s_token)" \
+    -H "Content-Type: application/json" \
+    -X PUT -d "$_data" \
     "$K8S_API/api/v1/namespaces/vault/secrets/$INIT_SECRET" > /dev/null
 }
 
