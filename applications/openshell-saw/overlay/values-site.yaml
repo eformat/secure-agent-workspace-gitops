@@ -22,3 +22,15 @@ job:
 
 dashboard:
   insecureSkipIssuerTlsVerify: true
+
+vm:
+  # *.apps route hostnames (keycloak OIDC, gateway/dashboard FQDNs) resolve to
+  # the external LB VIP that the VM cannot reach at :443 — route them via the
+  # control-plane node (HostNetwork ingress router) instead.
+  hostAliases:
+    - hostnames:
+        - openshell-keycloak-ingress-openshell-agents.apps.cluster-kvhfx.dyn.redhatworkshops.io
+        - openshell-saw-gateway-openshell-agents.apps.cluster-kvhfx.dyn.redhatworkshops.io
+        - openshell-saw-dashboard-openshell-agents.apps.cluster-kvhfx.dyn.redhatworkshops.io
+        - openshell-saw-webui-openshell-agents.apps.cluster-kvhfx.dyn.redhatworkshops.io
+      ip: 10.10.10.10
