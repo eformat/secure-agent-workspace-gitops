@@ -43,7 +43,9 @@ k8s_replace_secret() {
 
 extract_init_field() {
   _field="$1"
-  _b64=$(printf '%s' "$2" | sed -n "s/.*\"$_field\":\"\\([^\"]*\\)\".*/\\1/p")
+  # k8s API responses are pretty-printed - compact before parsing
+  _compact=$(printf '%s' "$2" | tr -d ' \n')
+  _b64=$(printf '%s' "$_compact" | sed -n "s/.*\"$_field\":\"\\([^\"]*\\)\".*/\\1/p")
   [ -n "$_b64" ] || { echo "field $_field not found in $INIT_SECRET" >&2; exit 1; }
   printf '%s' "$_b64" | base64 -d
 }
@@ -76,7 +78,7 @@ if [ "$INITIALIZED" != "true" ]; then
   [ -n "$_root" ] || { echo "FATAL: failed to parse root_token from init output - vault keys would be lost" >&2; exit 1; }
   [ -n "$_key" ] || { echo "FATAL: failed to parse unseal_key from init output - vault keys would be lost" >&2; exit 1; }
   if k8s_get_secret | grep -q '"kind":"Secret"'; then
-    _rv=$(k8s_get_secret | sed -n 's/.*"resourceVersion":"\([^"]*\)".*/\1/p')
+    _rv=$(k8s_get_secret | tr -d ' \n' | sed -n 's/.*"resourceVersion":"\([^"]*\)".*/\1/p')
     k8s_replace_secret "$_rv" "$_root" "$_key"
   else
     k8s_create_secret "$_root" "$_key"
