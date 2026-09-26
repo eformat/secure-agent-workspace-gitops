@@ -227,6 +227,7 @@ PROVIDER_CRED_MAP = {
     "google-vertex-ai": "GOOGLE_API_KEY",
     "claude-code": "ANTHROPIC_API_KEY",
     "codex": "OPENAI_API_KEY",
+    "openai": "OPENAI_API_KEY",
     "nvidia": "NVIDIA_API_KEY",
     "build": "NVIDIA_INFERENCE_API_KEY",
     "brave": "BRAVE_API_KEY",

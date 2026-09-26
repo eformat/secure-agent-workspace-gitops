@@ -1,0 +1,18 @@
+display_name: Tavily Search
+description: Tavily search API access
+provider_type: tavily
+credentials:
+  - name: api_key
+    description: Tavily API key
+    env_vars: [TAVILY_API_KEY]
+    required: true
+    auth_style: bearer
+    header_name: authorization
+discovery:
+  credentials: [api_key]
+endpoints:
+  - host: api.tavily.com
+    port: 443
+    protocol: rest
+    enforcement: enforce
+    access: read-write
