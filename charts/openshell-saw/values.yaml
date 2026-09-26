@@ -142,7 +142,7 @@ virtctlVersion: "v1.4.1"
 job:
   image: "registry.fedoraproject.org/fedora:44"
   backoffLimit: 2
-  activeDeadlineSeconds: 1800
+  activeDeadlineSeconds: 3600
   # Extra pod hostAliases for the setup Job. Needed on clusters where *.apps
   # route hostnames resolve to an external VIP that pods cannot reach at :443.
   hostAliases: []
