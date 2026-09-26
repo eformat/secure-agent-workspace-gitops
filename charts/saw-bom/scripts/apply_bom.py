@@ -341,10 +341,11 @@ class GatewaySetup:
 
     def grant_default_workspace_access(self):
         section("Granting default workspace access")
+        client_subject = os.environ.get("OIDC_CLIENT_ID", "openshell-cli")
         self._with_oidc(lambda: self.sh.run([
             "openshell", "workspace", "member", "add",
             "--workspace", "default",
-            "--subject", "openshell-client",
+            "--subject", client_subject,
             "--role", "admin"
         ], check=False))
 
@@ -396,12 +397,13 @@ class WorkspaceDeployer:
             log(f"Using existing 'default' workspace")
             return
         log(f"Creating workspace '{ws.name}'")
+        client_subject = os.environ.get("OIDC_CLIENT_ID", "openshell-cli")
         self.gw._with_oidc(lambda: (
             self.sh.run(["openshell", "workspace", "create",
                          "--name", ws.name], check=False),
             self.sh.run(["openshell", "workspace", "member", "add",
                          "--workspace", ws.name,
-                         "--subject", "openshell-client",
+                         "--subject", client_subject,
                          "--role", "admin"], check=False),
         ))
 
