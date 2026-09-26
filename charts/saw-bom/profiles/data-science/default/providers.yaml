@@ -10,7 +10,7 @@ spec:
       model: nvidia/nemotron-3-super-120b-a12b
       credentialSecret: inference
       credentialSecretKey: api_key
-    - name: brave
-      type: brave
+    - name: tavily
+      type: tavily
       credentialSecret: web-search
       credentialSecretKey: api_key
