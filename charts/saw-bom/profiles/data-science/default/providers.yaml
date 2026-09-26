@@ -4,10 +4,10 @@ metadata:
   profile: data-science
 spec:
   providers:
-    - name: nvidia
-      type: nvidia
-      nemoclawProvider: build
-      model: nvidia/nemotron-3-super-120b-a12b
+    - name: openai
+      type: openai
+      nemoclawProvider: codex
+      model: glm-53-flash
       credentialSecret: inference
       credentialSecretKey: api_key
     - name: tavily
