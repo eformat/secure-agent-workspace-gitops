@@ -18,6 +18,7 @@ job:
   hostAliases:
     - hostnames:
         - hyperconverged-cluster-cli-download-openshift-cnv.apps.cluster-kvhfx.dyn.redhatworkshops.io
+        - openshell-keycloak-ingress-openshell-agents.apps.cluster-kvhfx.dyn.redhatworkshops.io
       ip: 10.10.10.10
 
 dashboard:
