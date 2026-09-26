@@ -8,17 +8,17 @@ spec:
       enabled: true
       image: quay.io/rh-ai-quickstart/openclaw-openshell:latest
       providers:
-        - nvidia
+        - openai
     - name: cuda-sandbox
       type: nemoclaw
       enabled: false
       agent: openclaw
       image: quay.io/rh-ai-quickstart/nemoclaw-sandbox:latest
       providers:
-        - nvidia
+        - openai
     - name: toolbox
       type: generic
       enabled: false
       image: base
       providers:
-        - nvidia
+        - openai
