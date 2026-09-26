@@ -24,6 +24,8 @@ fi
 DASHBOARD_CLIENT_ID="${DASHBOARD_CLIENT_ID:-openshell-dashboard}"
 
 mkdir -p "${HOME}/.config/systemd/user" "${HOME}/.config/openshell"
+# earlier setup runs (via sudo) may have left these root-owned
+sudo chown -R "$(id -un):$(id -gn)" "${HOME}/.config" 2>/dev/null || true
 
 # Copy just the CA cert (public, not sensitive — never the private key) to a
 # dedicated, world-readable location instead of exposing the whole TLS dir.
@@ -70,7 +72,7 @@ OAUTH2_PROXY_COOKIE_REFRESH=60s
 ENVEOF
 chmod 600 "${HOME}/.config/openshell/dashboard.env" "${HOME}/.config/openshell/dashboard-proxy.env"
 
-cat > "${HOME}/.config/systemd/user/openshell-dashboard.service" <<UNITEOF
+sudo tee "${HOME}/.config/systemd/user/openshell-dashboard.service" > /dev/null <<UNITEOF
 [Unit]
 Description=OpenShell Dashboard (BFF + UI)
 
@@ -86,7 +88,7 @@ RestartSec=5s
 WantedBy=default.target
 UNITEOF
 
-cat > "${HOME}/.config/systemd/user/openshell-dashboard-proxy.service" <<UNITEOF
+sudo tee "${HOME}/.config/systemd/user/openshell-dashboard-proxy.service" > /dev/null <<UNITEOF
 [Unit]
 Description=OpenShell Dashboard Auth Proxy (oauth2-proxy)
 
