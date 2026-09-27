@@ -16,13 +16,8 @@ data:
         groups: [wheel]
         sudo: ["ALL=(ALL) NOPASSWD:ALL"]
         shell: /bin/bash
-        ssh_authorized_keys:
-          {{- $sshKey := include "openshell-sandbox.sshPublicKey" . }}
-          {{- if $sshKey }}
-          - {{ $sshKey | quote }}
-          {{- else }}
-          - "__SSH_PUBLIC_KEY__"
-          {{- end }}
+        # No ssh_authorized_keys here: SSH keys are provisioned dynamically by
+        # KubeVirt accessCredentials (the guest agent owns authorized_keys).
 
     write_files:
       - path: /etc/openshell/gateway.env
@@ -105,6 +100,8 @@ data:
       - |
         set -euo pipefail
         echo "=== Configuring OpenShell gateway ==="
+        # Let the guest agent write authorized_keys (KubeVirt accessCredentials).
+        setsebool -P virt_qemu_ga_manage_ssh on || true
         {{- if .Values.vm.ingressNodeIP }}
         # *.apps route hostnames resolve to an external VIP unreachable from
         # the VM - pin them to the HostNetwork ingress router node IP.
