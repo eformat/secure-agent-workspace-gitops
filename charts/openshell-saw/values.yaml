@@ -4,6 +4,10 @@ sandboxName: ""
 # from the 'public_key' field in the sshSecret (created by ESO/pattern-secrets).
 sshPublicKey: ""
 
+# Name of an existing Secret to use for SSH public keys instead of creating
+# <name>-ssh-pubkey. Leave empty to let the chart create one.
+sshPublicKeySecret: ""
+
 # VM disk source — three modes:
 #
 # 1. DataSource (default): clone from a golden image DataSource (created by the

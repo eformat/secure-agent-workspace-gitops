@@ -95,6 +95,15 @@ openshell-gateway
 {{- end }}
 
 {{/*
+Secret with the operator SSH public key(s) for KubeVirt accessCredentials:
+sshPublicKeySecret if set, else the chart-created <name>-ssh-pubkey (empty
+until `make openshell-saw-vm-ssh` adds a key).
+*/}}
+{{- define "openshell-sandbox.sshKeySecretName" -}}
+{{- .Values.sshPublicKeySecret | default (printf "%s-ssh-pubkey" (include "openshell-sandbox.fullname" .)) -}}
+{{- end }}
+
+{{/*
 Resolve the SSH public key.
 Priority: explicit sshPublicKey > global.sshPublicKey.
 */}}

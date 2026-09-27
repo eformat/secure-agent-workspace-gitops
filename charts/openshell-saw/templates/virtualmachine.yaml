@@ -77,6 +77,15 @@ spec:
         features:
           acpi: {}
           smm: {}
+      accessCredentials:
+        - sshPublicKey:
+            source:
+              secret:
+                secretName: {{ include "openshell-sandbox.sshKeySecretName" . }}
+            propagationMethod:
+              qemuGuestAgent:
+                users:
+                  - cloud-user
       networks:
         - name: default
           pod: {}
