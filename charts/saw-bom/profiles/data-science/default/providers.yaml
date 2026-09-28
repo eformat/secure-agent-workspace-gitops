@@ -7,7 +7,7 @@ spec:
     - name: openai
       type: openai
       nemoclawProvider: codex
-      model: glm-53-flash
+      model: publishers/prelude-maas/models/glm-53-flash
       credentialSecret: inference
       credentialSecretKey: api_key
     - name: tavily
