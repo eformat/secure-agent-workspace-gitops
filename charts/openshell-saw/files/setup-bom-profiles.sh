@@ -76,21 +76,30 @@ for file in ${BOM_MOUNT}/*; do
             type_env_var="$(echo "PROV_${cur_name}_TYPE" | tr '[:lower:]' '[:upper:]' | tr '-' '_')"
             echo "${type_env_var}=$(cat "${ppath}")" >> "${BOM_ENV}"
           fi
+          if [[ -n "${cur_base_url_key:-}" ]]; then
+            bupath="/ws-secrets/${cur_secret}/${cur_base_url_key}"
+            if [[ -f "${bupath}" ]]; then
+              bu_env_var="$(echo "PROV_${cur_name}_BASE_URL" | tr '[:lower:]' '[:upper:]' | tr '-' '_')"
+              echo "${bu_env_var}=$(cat "${bupath}")" >> "${BOM_ENV}"
+            fi
+          fi
         else
           echo "  WARNING: credential for provider '${cur_name}' not found at ${spath} — is '${cur_secret}' listed in additionalProviderSecrets (openshell-saw values) or is it the primary inference.secretName?"
         fi
       fi
     }
-    cur_name="" ; cur_secret="" ; cur_key=""
+    cur_name="" ; cur_secret="" ; cur_key="" ; cur_base_url_key=""
     while IFS= read -r line; do
       if echo "${line}" | grep -q '^\s*- name:'; then
         _flush_prov
         cur_name="$(echo "${line}" | sed 's/.*name: *//' | tr -d '"' | tr -d "'")"
-        cur_secret="" ; cur_key=""
+        cur_secret="" ; cur_key="" ; cur_base_url_key=""
       elif echo "${line}" | grep -q 'credentialSecretKey:'; then
         cur_key="$(echo "${line}" | sed 's/.*credentialSecretKey: *//' | tr -d '"' | tr -d "'")"
       elif echo "${line}" | grep -q 'credentialSecret:'; then
         cur_secret="$(echo "${line}" | sed 's/.*credentialSecret: *//' | tr -d '"' | tr -d "'")"
+      elif echo "${line}" | grep -q 'baseUrlSecretKey:'; then
+        cur_base_url_key="$(echo "${line}" | sed 's/.*baseUrlSecretKey: *//' | tr -d '"' | tr -d "'")"
       fi
     done < "$file"
     _flush_prov
