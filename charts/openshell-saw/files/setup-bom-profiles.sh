@@ -144,6 +144,19 @@ fi
 
 guest_scp "${BOM_ENV}" "/home/${SSH_USER}/bom.env"
 
+# Mirror mounted secrets to the VM so apply_bom.py can read them from its
+# --secrets-dir (the Job pod has them at /ws-secrets; the VM needs a copy).
+VM_SECRETS="/home/${SSH_USER}/ws-secrets"
+guest_ssh "mkdir -p ${VM_SECRETS}"
+for sdir in /ws-secrets/*/; do
+  sname="$(basename "${sdir}")"
+  guest_ssh "mkdir -p ${VM_SECRETS}/${sname}"
+  for sfile in "${sdir}"*; do
+    [[ -f "${sfile}" ]] || continue
+    guest_scp "${sfile}" "${VM_SECRETS}/${sname}/$(basename "${sfile}")"
+  done
+done
+
 # Compute dashboard route for openclaw gateway inside sandboxes
 DASHBOARD_ROUTE_HOST="$(kubectl get route "${VM_NAME}-dashboard" -n "${NS}" -o jsonpath='{.spec.host}' 2>/dev/null || true)"
 
@@ -153,6 +166,7 @@ guest_ssh "
   set -a; source /home/${SSH_USER}/bom.env 2>/dev/null; set +a
   python3 /home/${SSH_USER}/apply_bom.py \
     --profiles-dir ${BOM_DIR} \
+    --secrets-dir ${VM_SECRETS} \
     --oidc-gateway \${OPENSHELL_GATEWAY:-openshell} \
     --mtls-gateway openshell-local \
     --nemoclaw-cli-image \"\${NEMOCLAW_CLI_IMAGE:-}\" \

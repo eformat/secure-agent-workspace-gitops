@@ -40,6 +40,8 @@ class Provider:
     credential_secret: str = ""
     credential_secret_key: str = "api_key"
     model: str = ""
+    base_url_secret_key: str = ""
+    base_url: str = ""
 
 
 @dataclass
@@ -196,6 +198,7 @@ def parse_profiles(profiles_dir):
                         credential_secret=p.get("credentialSecret", ""),
                         credential_secret_key=p.get("credentialSecretKey", "api_key"),
                         model=p.get("model", ""),
+                        base_url_secret_key=p.get("baseUrlSecretKey", ""),
                     ))
             sb_file = ws_entry / "sandbox.yaml"
             if sb_file.exists():
@@ -235,6 +238,13 @@ PROVIDER_CRED_MAP = {
 }
 
 
+BASE_URL_CONFIG_KEYS = {
+    "openai": "OPENAI_BASE_URL",
+    "anthropic": "ANTHROPIC_BASE_URL",
+    "nvidia": "NVIDIA_BASE_URL",
+}
+
+
 def resolve_credential(provider):
     env_var = f"PROV_{provider.name}_KEY".replace("-", "_").upper()
     val = os.environ.get(env_var)
@@ -246,6 +256,11 @@ def resolve_credential(provider):
         if val:
             return val
     return None
+
+
+def resolve_base_url(provider):
+    env_var = f"PROV_{provider.name}_BASE_URL".replace("-", "_").upper()
+    return os.environ.get(env_var, "")
 
 
 def resolve_configured_type(provider):
@@ -425,6 +440,8 @@ class WorkspaceDeployer:
             args += ["--credential", f"{cred_key}={credential}"]
         else:
             args += ["--from-existing"]
+        if provider.base_url and provider.type in BASE_URL_CONFIG_KEYS:
+            args += ["--config", f"{BASE_URL_CONFIG_KEYS[provider.type]}={provider.base_url}"]
         self.sh.run(args, check=False)
 
     def create_sandbox_generic(self, sandbox, workspace_name="default"):
@@ -837,6 +854,7 @@ def main():
                 inference_set = False
                 for prov in enabled_provs:
                     cred = resolve_credential(prov)
+                    prov.base_url = resolve_base_url(prov) or prov.base_url
                     deployer.create_provider(prov, cred, ws.name)
                     if not inference_set and prov.model:
                         log(f"  Setting inference routes: "
@@ -885,6 +903,8 @@ def main():
 
                     prov = find_provider(ws, sb.providers)
                     cred = resolve_credential(prov) if prov else None
+                    if prov:
+                        prov.base_url = resolve_base_url(prov) or prov.base_url
                     mismatch = check_provider_type_mismatch(prov) if prov else None
                     if mismatch:
                         log(f"ERROR: {mismatch} — skipping nemoclaw "
