@@ -173,7 +173,15 @@ route:
 # OIDC-configured gateway.
 dashboard:
   enabled: true
-  image: "quay.io/gkrumbach07/openshell-dashboard:latest"
+  # Pinned by digest tag, never :latest. The dashboard's Go SDK is
+  # wire-coupled to the gateway: the Sep 2026 SDK renumbered the proto
+  # fields so every workspace-scoped call serializes a WorkspaceSelector
+  # message (0A 07 "default") that gateway release 0.0.116 reads as a
+  # plain string — dashboard sandboxes then fail with
+  # "workspace '\n\adefault' not found". sha-597fa6e (2026-08-31) is the
+  # last build predating the renumbered SDK and is the newest one
+  # compatible with the pinned gatewayImage/supervisorImage below.
+  image: "quay.io/gkrumbach07/openshell-dashboard:sha-597fa6e"
   proxyImage: "quay.io/oauth2-proxy/oauth2-proxy:v7.9.0"
   clientId: "openshell-dashboard"
   # Keycloak only supports a *trailing* wildcard in redirect URIs, which can't
